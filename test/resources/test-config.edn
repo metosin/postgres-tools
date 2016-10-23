@@ -1,0 +1,17 @@
+{:pooled-db {:username "pgtools"
+             :password "pgtools"
+             :server-name "localhost"
+             :database-name "pgtools_test"
+             :adapter "postgresql"
+             :auto-commit false
+             :connection-timeout 30000
+             :validation-timeout 5000
+             :idle-timeout 600000
+             :max-lifetime 1800000
+             :minimum-idle 3
+             :maximum-pool-size 10}
+ :plain-db {:vendor "postgresql"
+            :name "pgtools_test"
+            :host "localhost"
+            :user "pgtools"
+            :password "pgtools"}}
