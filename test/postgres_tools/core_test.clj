@@ -1,12 +1,10 @@
 (ns postgres-tools.core-test
   (:require
     [clojure.test :refer :all]
-    [jdbc.core :as jdbc]
     [mount.core :as mount]
     [postgres-tools.test.conn :refer [db]]
-    [postgres-tools.core :refer :all]
+    [postgres-tools.clojure.jdbc.core :refer :all]
     [juxt.iota :refer [given]]))
-
 
 (use-fixtures :once (fn [tests] (mount/start) (tests) (mount/stop)))
 
@@ -101,8 +99,4 @@
          first := {:houses 4})
 
   )
-
-;; TODO direct datatypes like map <-> jsonb
-;; TODO keyword datatypes like xxx.v1 <-> pg enum type
-;; TODO make it possible to insert and update
 
