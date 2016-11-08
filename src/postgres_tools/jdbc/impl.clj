@@ -4,7 +4,10 @@
 
 ;;
 ;; Implementations for common insert, update and upsert functionality
+;; Use through clojure-jdbc or java-jdbc namespace
 ;;
+
+(def ^:dynamic *execute-sql-fn* nil)
 
 (defn- underscore [x] (str/replace x #"-" "_"))
 (defn- upperscore [x] (str/replace x #"_" "-"))
@@ -51,44 +54,71 @@
                                column))
                            value-columns))))
 
-(defn insert*!
-  [dbspec table-name data returning-columns options execute-fn]
-  {:pre [(sequential? data) (map? (first data))]}
+;;
+;; Public api
+;;
 
-  (let [columns (keys (first data))
-        sql     (insert-sql table-name
-                            columns
-                            returning-columns
-                            (count data)
-                            nil)
-        sqlvec  (into [sql] (for [row data
-                                  k   columns]
-                              (get row k)))]
-    (execute-fn dbspec sqlvec returning-columns options)))
+(defn insert!
+  "Jdbc insert. Data is list of maps. Returned columns
+  can be provided as a vector of column names."
+  ([dbspec table-name data]
+   (insert! dbspec table-name data nil nil))
+  ([dbspec table-name data returning-columns]
+   (insert! dbspec table-name data returning-columns nil))
+  ([dbspec table-name data returning-columns options]
+   {:pre [(sequential? data) (map? (first data))]}
 
-(defn update*!
-  [dbspec table-name data-map identity-map returning-columns options execute-fn]
-  {:pre [(map? data-map) (map? identity-map)]}
+   (let [columns (keys (first data))
+         sql     (insert-sql table-name
+                             columns
+                             returning-columns
+                             (count data)
+                             nil)
+         sqlvec  (into [sql] (for [row data
+                                   k   columns]
+                               (get row k)))]
+     (*execute-sql-fn* dbspec sqlvec returning-columns options))))
 
-  (let [sql    (update-sql table-name
-                           (keys data-map)
-                           (keys identity-map)
-                           returning-columns)
-        sqlvec (into [sql] (concat (vals data-map) (vals identity-map)))]
-    (execute-fn dbspec sqlvec returning-columns options)))
+(defn update!
+  "Jdbc update. Data is a map of new column values and
+  identity is a map of column values on which row(s) should be updated.
+  Returned columns can be provided as a vector of column names."
+  ([dbspec table-name data-map identity-map]
+   (update! dbspec table-name data-map identity-map nil nil))
+  ([dbspec table-name data-map identity-map returning-columns]
+   (update! dbspec table-name data-map identity-map returning-columns nil))
+  ([dbspec table-name data-map identity-map returning-columns options]
+   {:pre [(map? data-map) (map? identity-map)]}
 
-(defn upsert*!
-  [dbspec table-name data identity-columns returning-columns options execute-fn]
-  {:pre [(sequential? data) (map? (first data))]}
+   (let [sql    (update-sql table-name
+                            (keys data-map)
+                            (keys identity-map)
+                            returning-columns)
+         sqlvec (into [sql] (concat (vals data-map) (vals identity-map)))]
+     (*execute-sql-fn* dbspec sqlvec returning-columns options))))
 
-  (let [columns (keys (first data))
-        sql     (insert-sql table-name
-                            columns
-                            returning-columns
-                            (count data)
-                            (upsert-sql identity-columns
-                                        columns))
-        sqlvec  (into [sql] (for [row data
-                                  k   columns]
-                              (get row k)))]
-    (execute-fn dbspec sqlvec returning-columns options)))
+(defn upsert!
+  "Inserts using Postgresql insert with upsert semantics.
+  Identity lists the columns to check against the existences of the row.
+  Identity columns need to have unique index on them.
+  Data rows get either updated or inserted based on identity search.
+  Returned columns can be provided as a vector of column names."
+  ([dbspec table-name data identity-columns]
+   (upsert! dbspec table-name data identity-columns nil nil))
+  ([dbspec table-name data identity-columns returning-columns]
+   (upsert! dbspec table-name data identity-columns returning-columns nil))
+  ([dbspec table-name data identity-columns returning-columns options]
+   {:pre [(sequential? data) (map? (first data))]}
+
+   (let [columns (keys (first data))
+         sql     (insert-sql table-name
+                             columns
+                             returning-columns
+                             (count data)
+                             (upsert-sql identity-columns
+                                         columns))
+         sqlvec  (into [sql] (for [row data
+                                   k   columns]
+                               (get row k)))]
+     (*execute-sql-fn* dbspec sqlvec returning-columns options))))
+

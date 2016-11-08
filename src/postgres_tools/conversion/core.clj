@@ -1,6 +1,7 @@
 (ns postgres-tools.conversion.core
   (:require [clojure.spec :as s]
-            [jdbc.proto :as proto])
+            [jdbc.proto :as proto]
+            [])
   (:import (clojure.lang Keyword IPersistentMap)
            (org.postgresql.util PGobject)))
 
@@ -53,13 +54,14 @@
 ;; THIS SHOULD WORK ON QUERY PARAMETERS TOO!!
 
 ;; And finally create what is necessary to create conversions
-;; This way it's in control what actual conversions there are
 
 ;; (create-to-db-conversions to-db-config)
 ;; (create-from-db conversions from-db-config)
 
 
 ;; SO all of the above will generate something like this
+
+;; For clojure.jdbc
 
 (extend-protocol proto/ISQLType
   SpecValue
@@ -79,3 +81,6 @@
       ('checkf2 v) ('fn6 v metadata)
       ('checkf3 v) ('fn7 v metadata)
       :default v)))
+
+;; For java.jdbc
+

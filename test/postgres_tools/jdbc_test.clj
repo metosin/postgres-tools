@@ -1,9 +1,9 @@
-(ns postgres-tools.core-test
+(ns postgres-tools.jdbc-test
   (:require
     [clojure.test :refer :all]
     [mount.core :as mount]
     [postgres-tools.test.conn :refer [db]]
-    [postgres-tools.clojure.jdbc.core :refer :all]
+    [postgres-tools.jdbc.clojure-jdbc :refer :all]
     [juxt.iota :refer [given]]))
 
 (use-fixtures :once (fn [tests] (mount/start) (tests) (mount/stop)))

@@ -1,19 +1,25 @@
-(ns postgres-tools.clojure.jdbc.core
+(ns postgres-tools.jdbc.java-jdbc
   (:require
-    [postgres-tools.jdbc.impl :as impl]
-    [jdbc.core :as jdbc]))
+    [postgres-tools.jdbc.impl :as util]
+    [clojure.java.jdbc :as java-jdbc]))
 
 
-;; TODO make java.jdbc version of this
+;;
+;; Java jdbc version of insert, update and upsert
+;;
+
+
 
 (defn- fetch-or-execute [dbspec sqlvec returning-columns options]
   (println (prn-str sqlvec))
-  (with-open [conn (jdbc/connection dbspec)]
-    (jdbc/atomic conn
+    (java-jdbc/db-do-prepared dbspec transaction? sqlvec {:multi? true})
+
+#_(with-open [conn (jdbc-core/connection dbspec)]
+    (jdbc-core/atomic conn
       (if returning-columns
-        (let [options (merge {:identifiers impl/identifier-from} options)]
-          (jdbc/fetch conn sqlvec options))
-        (jdbc/execute conn sqlvec options)))))
+        (let [options (merge {:identifiers util/identifier-from} options)]
+          (jdbc-core/fetch conn sqlvec options))
+        (jdbc-core/execute conn sqlvec options)))))
 
 ;;
 ;; Public api
@@ -29,7 +35,7 @@
   ([dbspec table-name data returning-columns options]
    {:pre [(sequential? data) (map? (first data))]}
 
-   (impl/insert*! dbspec
+   (util/insert*! dbspec
                   table-name
                   data
                   returning-columns
@@ -47,7 +53,7 @@
   ([dbspec table-name data-map identity-map returning-columns options]
    {:pre [(map? data-map) (map? identity-map)]}
 
-   (impl/update*! dbspec
+   (util/update*! dbspec
                   table-name
                   data-map
                   identity-map
@@ -68,7 +74,7 @@
   ([dbspec table-name data identity-columns returning-columns options]
    {:pre [(sequential? data) (map? (first data))]}
 
-   (impl/upsert*! dbspec
+   (util/upsert*! dbspec
                   table-name
                   data
                   identity-columns
@@ -79,14 +85,14 @@
 (defn query
   ([dbspec sql-statement] (query dbspec sql-statement nil))
   ([dbspec sql-statement options]
-   (let [options (merge {:identifiers impl/identifier-from} options)]
-     (with-open [conn (jdbc/connection dbspec)]
-       (jdbc/fetch conn sql-statement options)))))
+   (let [options (merge {:identifiers util/identifier-from} options)]
+     (with-open [conn (jdbc-core/connection dbspec)]
+       (jdbc-core/fetch conn sql-statement options)))))
 
 (defn execute!
   ([dbspec sql-statements] (execute! dbspec sql-statements nil))
   ([dbspec sql-statements options]
-   (with-open [conn (jdbc/connection dbspec)]
-     (jdbc/atomic conn
+   (with-open [conn (jdbc-core/connection dbspec)]
+     (jdbc-core/atomic conn
        (doseq [s sql-statements]
-         (jdbc/execute conn s options))))))
+         (jdbc-core/execute conn s options))))))
