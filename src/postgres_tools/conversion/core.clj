@@ -1,8 +1,7 @@
 (ns postgres-tools.conversion.core
   (:require [clojure.spec :as s]
-            [jdbc.proto :as proto]
-            [])
-  (:import (clojure.lang Keyword IPersistentMap)
+            [jdbc.proto :as proto])
+  (:import (clojure.lang IPersistentMap)
            (org.postgresql.util PGobject)))
 
 
@@ -83,4 +82,29 @@
       :default v)))
 
 ;; For java.jdbc
+
+
+
+
+
+
+;; Testing spec coersion with conformer
+
+(defn str->int [x]
+  (cond
+    (integer? x) x
+    (string? x) (Integer/parseInt x)
+    :else :clojure.spec/invalid))
+
+(def c-integer? (s/conformer str->int))
+
+(s/def ::a integer?)
+(s/def ::a1 c-integer?)
+
+(s/conform ::a "1")
+(s/conform ::a1 "1")
+(s/conform ::a1 1)
+
+
+
 

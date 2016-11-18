@@ -6,7 +6,11 @@
     [postgres-tools.jdbc.clojure-jdbc :refer :all]
     [juxt.iota :refer [given]]))
 
-(use-fixtures :once (fn [tests] (mount/start) (tests) (mount/stop)))
+(use-fixtures :once (fn [tests]
+                      (mount/start)
+                      (tests)
+                      ;; TODO Add another round to test java-jdbc
+                      (mount/stop)))
 
 (defn reset-db []
   (println "Clearing database...")
