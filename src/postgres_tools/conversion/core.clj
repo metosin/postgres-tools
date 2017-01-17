@@ -83,6 +83,31 @@
 
 ;; For java.jdbc
 
+;; Käytä näitä...
+
+;; Validointi...
+
+;; Spec generointi taulujen pohjalta?
+
+#_(defn get-tables [db]
+  (with-open [conn (jdbc/get-connection db)]
+    (->> (.getTables (.getMetaData conn) nil nil "%" (into-array String ["TABLE"]))
+         resultset-seq
+         (map (fn [{:keys [table_schem table_name remarks]}]
+                {:schema table_schem
+                 :name table_name
+                 :description remarks})))))
+
+#_(defn get-columns [db schema table]
+  (with-open [conn (jdbc/get-connection db)]
+    (->> (.getColumns (.getMetaData conn) nil schema table nil)
+         resultset-seq
+         (map (fn [{:keys [column_name type_name column_size is_nullable is_autoincrement]}]
+                {:size column_size
+                 :name column_name
+                 :type type_name
+                 :nillable? (= "YES" is_nullable)
+                 :auto-increment? (= "YES" is_autoincrement)})))))
 
 
 

@@ -3,16 +3,31 @@
     [clojure.test :refer :all]
     [mount.core :as mount]
     [postgres-tools.test.conn :refer [db]]
-    [postgres-tools.jdbc.clojure-jdbc :refer :all]
+    [postgres-tools.jdbc.clojure-jdbc :as cj]
+    [postgres-tools.jdbc.java-jdbc :as jj]
     [juxt.iota :refer [given]]))
+
+;; Define tested methods through map so we can
+;; test both libraries with same test functions
+
+(def cjdbc {:insert! cj/insert!
+            :update! cj/update!
+            :upsert! cj/upsert!
+            :query cj/query
+            :execute! cj/execute!})
+
+(def jjdbc {:insert! jj/insert!
+            :update! jj/update!
+            :upsert! jj/upsert!
+            :query jj/query
+            :execute! jj/execute!})
 
 (use-fixtures :once (fn [tests]
                       (mount/start)
                       (tests)
-                      ;; TODO Add another round to test java-jdbc
                       (mount/stop)))
 
-(defn reset-db []
+(defn reset-db [execute!]
   (println "Clearing database...")
   (execute! db
             ["DROP TABLE IF EXISTS house"
@@ -26,8 +41,8 @@
                   "  data JSONB"
                   ")")]))
 
-(deftest basic-insert
-  (reset-db)
+(defn basic-insert-test [{:keys [insert! execute!]}]
+  (reset-db execute!)
 
   ;; Return is just number of rows inserted
   (given (insert! db :house [{:name "a"} {:name "a1"}])
@@ -44,11 +59,15 @@
   (given (insert! db :house [{:name "c"}] [:id :name])
          first :> {:name "c"}
          [first :id] :? integer?)
-
   )
 
-(deftest basic-update
-  (reset-db)
+(deftest basic-insert
+  (basic-insert-test cjdbc)
+  (basic-insert-test jjdbc))
+
+
+(defn basic-update-test [{:keys [insert! update! execute!]}]
+  (reset-db execute!)
 
   (given (insert! db :house [{:name "a"} {:name "a1"}])
          identity := 2)
@@ -63,8 +82,12 @@
 
   )
 
-(deftest basic-upsert
-  (reset-db)
+(deftest basic-update
+  (basic-update-test cjdbc)
+  (basic-update-test jjdbc))
+
+(defn basic-upsert-test [{:keys [upsert! query execute!]}]
+  (reset-db execute!)
 
   ;; Should be normal insert as there is no id
   (given (upsert! db :house [{:name "a"}] [:id])
@@ -103,4 +126,6 @@
          first := {:houses 4})
 
   )
-
+(deftest basic-upsert
+  (basic-upsert-test cjdbc)
+  (basic-upsert-test jjdbc))

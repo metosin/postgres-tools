@@ -1,42 +1,75 @@
 (ns postgres-tools.jdbc.java-jdbc
   (:require
     [postgres-tools.jdbc.impl :as impl]
-    [clojure.java.jdbc :as java-jdbc]))
+    [clojure.java.jdbc :as jdbc])
+  (:import (javax.sql DataSource)))
 
+(defprotocol Connection
+  "Handle dbspec -> connection wrapping"
+  (connection [x]))
+
+(extend-protocol Connection
+  DataSource
+  (connection [ds] {:datasource ds})
+  Object
+  (connection [dbspec] dbspec))
 
 ;;
-;; Java jdbc version of insert, update and upsert
+;; Java jdbc version
 ;;
 
-;; TODO Fix this
-(defn- execute-sql [dbspec sqlvec returning-columns options]
+(defn- execute-sql [dbspec sqlvec returns-data? options]
   (println (prn-str sqlvec))
-  (java-jdbc/db-do-prepared dbspec transaction? sqlvec {:multi? true}))
+  (jdbc/with-db-transaction [conn (connection dbspec)]
+    (if returns-data?
+      (jdbc/query conn sqlvec (impl/default-result-options options))
+      (first (jdbc/execute! conn sqlvec options)))))
 
 
-(alter-var-root #'impl/*execute-sql-fn* (constantly execute-sql))
 
 ;;
 ;; Public api
 ;;
 
-(def insert! impl/insert!)
-(def update! impl/update!)
-(def upsert! impl/upsert!)
+(defn insert!
+  {:doc impl/insert-doc}
+  ([dbspec table-name data]
+   (impl/insert! execute-sql dbspec table-name data nil nil))
+  ([dbspec table-name data returning-columns]
+   (impl/insert! execute-sql dbspec table-name data returning-columns nil))
+  ([dbspec table-name data returning-columns options]
+   (impl/insert! execute-sql dbspec table-name data returning-columns options)))
+
+(defn update!
+  {:doc impl/update-doc}
+  ([dbspec table-name data-map identity-map]
+   (impl/update! execute-sql dbspec table-name data-map identity-map nil nil))
+  ([dbspec table-name data-map identity-map returning-columns]
+   (impl/update! execute-sql dbspec table-name data-map identity-map returning-columns nil))
+  ([dbspec table-name data-map identity-map returning-columns options]
+   (impl/update! execute-sql dbspec table-name data-map identity-map returning-columns options)))
+
+(defn upsert!
+  {:doc impl/update-doc}
+  ([dbspec table-name data identity-columns]
+   (impl/upsert! execute-sql dbspec table-name data identity-columns nil nil))
+  ([dbspec table-name data identity-columns returning-columns]
+   (impl/upsert! execute-sql dbspec table-name data identity-columns returning-columns nil))
+  ([dbspec table-name data identity-columns returning-columns options]
+   (impl/upsert! execute-sql dbspec table-name data identity-columns returning-columns options)))
 
 (defn query
-  ([dbspec sql-statement] (query dbspec sql-statement nil))
+  ([dbspec sql-statement]
+   (query dbspec sql-statement nil))
   ([dbspec sql-statement options]
-   (let [options (merge {:identifiers impl/identifier-from} options)]
-     ;; TODO
-     #_(with-open [conn (jdbc-core/connection dbspec)]
-         (jdbc-core/fetch conn sql-statement options)))))
+   (jdbc/query (connection dbspec)
+               sql-statement
+               (impl/default-result-options options))))
 
 (defn execute!
-  ([dbspec sql-statements] (execute! dbspec sql-statements nil))
-  ([dbspec sql-statements options]
-    ;; TODO
-    #_(with-open [conn (jdbc-core/connection dbspec)]
-        (jdbc-core/atomic conn
-                          (doseq [s sql-statements]
-                            (jdbc-core/execute conn s options))))))
+  ([dbspec sql-statements]
+   (execute! dbspec sql-statements nil))
+  ([dbspec sql-statements _]
+   (jdbc/with-db-transaction [conn (connection dbspec)]
+     (doseq [s sql-statements]
+       (jdbc/execute! conn s)))))
